@@ -106,6 +106,7 @@ $(function(){
      $.ajax({
           url: "//{{.Host}}/channel/{{.channel.ID.Hex}}/history"
      }).done(function(data) {
+          data = JSON.parse(data);
           data.forEach(function(d) {
                addMessage(messages, d, -1);
           })

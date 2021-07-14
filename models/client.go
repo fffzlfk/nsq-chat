@@ -48,7 +48,7 @@ func (c *Client) read() {
 
 			msg.Name = c.user.Name
 			msg.Channel = c.channel
-			msg.User = string(c.user.ID)
+			msg.User = c.user.ID.Hex()
 			msg.TimeStamp = time.Now()
 
 			msgData, _ = json.Marshal(msg)
