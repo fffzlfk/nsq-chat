@@ -1,56 +1,43 @@
 package controllers
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
-	"nsq-chat/db"
 	"nsq-chat/models"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func Login(c *gin.Context) {
-
-	if c.Request.Method == http.MethodPost {
-		name := c.PostForm("name")
-		email := c.PostForm("email")
-		password := c.PostForm("password")
-
-		var user models.User
-		err := db.Mgo.DB("").C("users").Find(bson.M{
-			"email": email,
-		}).One(&user)
-		if err != nil && err.Error() == "not found" {
-			user.ID = bson.NewObjectId()
-			user.Name = name
-			user.Email = email
-			user.Password = password
-			user.CreatedAt = time.Now()
-			if err := db.Mgo.DB("").C("users").Insert(user); err != nil {
-				fmt.Fprintln(c.Writer, err)
-				return
-			}
-
-			help(c, user.ID)
-			c.HTML(http.StatusOK, "index.html", nil)
-			return
-		}
-
-		if password == user.Password {
-			help(c, user.ID)
-			c.HTML(http.StatusOK, "index.html", nil)
-			return
-		} else {
-			fmt.Fprintln(c.Writer, errors.New("password doesn't match"))
-			return
-		}
-	}
-	c.HTML(http.StatusOK, "login.html", nil)
+func Index(c *fiber.Ctx) error {
+	return c.Render("login", nil)
 }
 
-func help(c *gin.Context, id bson.ObjectId) {
-	c.SetCookie("user_cookie", id.Hex(), 1000, "/", "localhost", false, true)
+func Login(c *fiber.Ctx) error {
+	name := c.FormValue("name")
+	email := c.FormValue("email")
+	password := c.FormValue("password")
+
+	var user models.User
+	err := models.QueryUserByEmail(email, &user)
+	if err != nil && err.Error() == "not found" {
+		user.ID = bson.NewObjectId()
+		user.Name = name
+		user.Email = email
+		user.Password = password
+		user.CreatedAt = time.Now()
+		if err := models.InsertUser(user); err != nil {
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+	} else if err != nil || password != user.Password {
+		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+
+	cookie := &fiber.Cookie{
+		Name:    "id",
+		Value:   user.ID.Hex(),
+		Expires: time.Now().Add(24 * time.Hour),
+	}
+	c.Cookie(cookie)
+
+	return c.Render("index", nil)
 }

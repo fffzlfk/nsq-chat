@@ -87,7 +87,7 @@ $(function(){
      }
 
      function startWS() {
-          socket = new WebSocket("ws://{{.Host}}/channel/{{.channel.ID.Hex}}/chat");
+          socket = new WebSocket("ws://{{.Host}}/ws/{{.channel.ID.Hex}}");
           socket.onclose = function() {
                console.log("Connection has been closed.");
                checkWS();

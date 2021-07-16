@@ -4,11 +4,9 @@ import (
 	"encoding/hex"
 	"log"
 	"nsq-chat/config"
-	"nsq-chat/db"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/fasthttp/websocket"
+	"github.com/gofiber/fiber/v2"
 )
 
 type Room struct {
@@ -51,51 +49,45 @@ func NewRoom() *Room {
 	return r
 }
 
-func RoomChat(r *Room) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		roomId := c.Param("id")
+func RoomChat(r *Room) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		roomId := c.Params("id")
 
-		upgrader := &websocket.Upgrader{
+		upgrader := &websocket.FastHTTPUpgrader{
 			ReadBufferSize:  config.SocketBufferSize,
 			WriteBufferSize: config.SocketBufferSize,
 		}
-
-		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-		if err != nil {
-			log.Println("ServeHTTP:", err)
-			return
-		}
-
-		cookie, err := c.Request.Cookie("user_cookie")
-		if err != nil {
-			log.Println("Cookie Error:", err)
-			return
-		}
-		userId := cookie.Value
+		userId := c.Cookies("id")
 		bytes, _ := hex.DecodeString(userId)
 		userId = string(bytes)
 
-		var user User
-		if err := db.Mgo.DB("").C("users").FindId(bson.ObjectId(userId)).One(&user); err != nil {
-			log.Println("DB Error:", err)
-			return
+		err := upgrader.Upgrade(c.Context(), func(conn *websocket.Conn) {
+			var user User
+			if err := QueryUserById(userId, &user); err != nil {
+				log.Println("DB Error:", err)
+				return
+			}
+
+			client := &Client{
+				conn:    conn,
+				send:    make(chan *Message),
+				room:    r,
+				user:    &user,
+				channel: roomId,
+			}
+			r.join <- client
+
+			defer func() {
+				r.leave <- client
+			}()
+
+			go client.write()
+			client.read()
+		})
+		if err != nil {
+			log.Println("ServeHTTP:", err)
+			return c.SendStatus(fiber.StatusInternalServerError)
 		}
-
-		client := &Client{
-			conn:    conn,
-			send:    make(chan *Message),
-			room:    r,
-			user:    &user,
-			channel: roomId,
-		}
-
-		r.join <- client
-
-		defer func() {
-			r.leave <- client
-		}()
-
-		go client.write()
-		client.read()
+		return nil
 	}
 }

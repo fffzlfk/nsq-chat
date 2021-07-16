@@ -2,35 +2,30 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
-	"net/http"
-	"nsq-chat/db"
 	"nsq-chat/models"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func channelList(c *gin.Context) {
+func ChannelList(c *fiber.Ctx) error {
 	var channels []models.Channel
-	db.Mgo.DB("").C("channels").Find(nil).All(&channels)
-	c.HTML(http.StatusOK, "channel-list.html", channels)
+	if err := models.QueryAllChannels(&channels); err != nil {
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}
+	return c.Render("channel-list", channels)
 }
 
-func NewChannel(c *gin.Context) {
-	data := map[string]interface{}{}
-
-	cookie, err := c.Request.Cookie("user_cookie")
-	if err != nil {
-		log.Println(err)
-		c.Abort()
-		return
+func NewChannel(c *fiber.Ctx) error {
+	userId := c.Cookies("id")
+	if userId == "" {
+		return c.SendStatus(fiber.StatusUnauthorized)
 	}
 
-	userId := cookie.Value
+	data := map[string]interface{}{}
 
-	if c.Request.Method == http.MethodPost {
-		name := c.PostForm("name")
+	name := c.Query("name")
+	if name != "" {
 		channel := models.Channel{
 			ID:        bson.NewObjectId(),
 			Name:      name,
@@ -41,62 +36,42 @@ func NewChannel(c *gin.Context) {
 			channel.Name = "No name"
 		}
 
-		if err := db.Mgo.DB("").C("channels").Insert(channel); err != nil {
-			log.Println(err)
+		if err := models.InsertChannel(channel); err != nil {
+			c.SendString("Alreadly exists")
+			return c.SendStatus(fiber.StatusInternalServerError)
 		}
 
 		data["channel"] = channel
 	}
-	c.HTML(http.StatusOK, "channel-new.html", data)
+	return c.Render("channel-new", data)
 }
 
-func channelView(c *gin.Context) {
-	data := map[string]interface{}{
-		"Host": c.Request.Host,
+func ChannelView(c *fiber.Ctx) error {
+	data := fiber.Map{
+		"Host": string(c.Request().Host()),
 	}
 
 	var channel models.Channel
-	chId := c.Param("id")
+	chId := c.Params("id")
 	id := bson.ObjectIdHex(chId)
 
-	db.Mgo.DB("").C("channels").FindId(id).One(&channel)
+	if err := models.QueryChannelById(id, &channel); err != nil {
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}
+
 	data["channel"] = channel
 
-	c.HTML(http.StatusOK, "channel-view.html", data)
+	return c.Render("channel-view", data)
 }
 
-func channelHistory(c *gin.Context) {
+func ChannelHistory(c *fiber.Ctx) error {
+	channelId := c.Params("id")
+
 	const limit = 10
-	result := make([]models.Message, limit)
 
-	err := db.Mgo.DB("").C("messages").Find(
-		bson.M{"channel": c.Param("id")},
-	).Sort("-timestamp").Limit(limit).All(&result)
-
+	res, err := models.QueryMessageByChannelId(channelId, limit)
 	if err != nil {
-		log.Print(err)
+		return c.SendStatus(fiber.StatusInternalServerError)
 	}
-
-	if err := json.NewEncoder(c.Writer).Encode(result); err != nil {
-		log.Println(err)
-	}
+	return json.NewEncoder(c.Context().Response.BodyWriter()).Encode(res)
 }
-
-func MustAuth(handler gin.HandlerFunc) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		_, err := c.Request.Cookie("user_cookie")
-		if err != nil {
-			log.Println(err)
-			c.Writer.Write([]byte("Error"))
-			c.Abort()
-			return
-		}
-		handler(c)
-	}
-}
-
-var (
-	ChannelList    = MustAuth(channelList)
-	ChannelHistory = MustAuth(channelHistory)
-	ChannelView    = MustAuth(channelView)
-)

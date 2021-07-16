@@ -21,52 +21,31 @@ A Chat App based on MOM(NSQ) in golang.
                     │                       └───────────
 ┌──────────────┐    │
 │              │    │   ┌────────────┐    ┌────────────┐
-│   CHAT TOPIC ├────┼───┤            │    │            │
+│   CHAT TOPIC ├────┼───┤            │----│            │
 │              │    │   │   Archive  │    │  MongoDB   │
 └──────────────┘    │   └────────────┘    └────────────┘
                     │
                     │
                     │   ┌────────────┐    ┌─────────────┐
-                    └───┤            │    │             │
+                    └───┤            │----│             │
                         │   Bot      │    │  ...TODO(NLP)
                         └────────────┘    └──────────────
 ```
 
 ## Tech Stack
 
-- [NSQ](https://nsq.io/)
-- [MongoDB](https://www.mongodb.com/)
-- [Gin Web Framework](https://gin-gonic.com/)
+- 消息中间件[NSQ](https://nsq.io/)
+- NoSQL数据库[MongoDB](https://www.mongodb.com/)
+- Web框架[Fiber Web Framework](https://gofiber.io/)
 
 ## Usage
 
-1. start MongoDB
-
+1. start
 ```bash
-mongod
-```
-2. start NSQ
-
-```bash
-nsqlookupd
-
-nsqd --lookupd-tcp-address=127.0.0.1:4160
+./launch.sh
 ```
 
-3. start chat server
-
-```bash
-go run main.go
+2. stop
 ```
-
-4. start archive
-
-```bash
-go run archive/archive.go
-```
-
-5. start bot
-
-```bash
-go run bot/bot.go
+./stop.sh
 ```

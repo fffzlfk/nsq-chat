@@ -1,22 +1,23 @@
 <div class="row">
-    <div class="col">
-         <div class="card">
-              <div class="card-header">
-                   Create new channel
-              </div>
-              <div class="card-body">
-              {{with .}}
-                   Channel <a href="/channel/{{.channel.ID.Hex}}/view">{{.channel.Name}}</a> is created!
-              {{else}}
-                   <form method="POST">
-                        <div class="form-group">
-                             <label for="name">Channel name</label>
-                             <input type="text" class="form-control" id="name" name="name"placeholder="Awesome channel" autocomplete="off" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Create</button>
-                   </form>
-              {{end}}
-              </div>
-         </div>
-    </div>
+     <div class="col">
+          <div class="card">
+               <div class="card-header">
+                    Create new channel
+               </div>
+               <div class="card-body">
+                    {{with .}}
+                    Channel <a href="/channel/{{.channel.ID.Hex}}/view">{{.channel.Name}}</a> is created!
+                    {{else}}
+                    <form method="GET">
+                         <div class="form-group">
+                              <label for="name">Channel name</label>
+                              <input type="text" class="form-control" id="name" name="name"
+                                   placeholder="Awesome channel" autocomplete="off" required>
+                         </div>
+                         <button type="submit" class="btn btn-primary">Create</button>
+                    </form>
+                    {{end}}
+               </div>
+          </div>
+     </div>
 </div>

@@ -1,27 +1,39 @@
 package main
 
 import (
-	"nsq-chat/config"
+	"log"
 	"nsq-chat/controllers"
 	"nsq-chat/models"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/template/html"
 )
 
 func main() {
-	router := gin.Default()
-	router.LoadHTMLGlob("views/*")
+	engine := html.New("./views", ".html")
+
+	app := fiber.New(fiber.Config{
+		Views: engine,
+	})
+
+	app.Use(logger.New())
+
+	app.Get("/", controllers.Index)
+
+	app.Post("/login", controllers.Login)
+
 	room := models.NewRoom()
 
-	router.GET("/", controllers.Login)
-	router.POST("/", controllers.Login)
+	app.Get("/ws/:id", models.RoomChat(room))
 
-	router.GET("/channel", controllers.ChannelList)
-	router.GET("/channel/new", controllers.NewChannel)
-	router.POST("/channel/new", controllers.NewChannel)
-	router.GET("/channel/:id/chat", models.RoomChat(room))
-	router.GET("/channel/:id/view", controllers.ChannelView)
-	router.GET("/channel/:id/history", controllers.ChannelHistory)
+	app.Get("/channel", controllers.ChannelList)
 
-	router.Run(config.Host)
+	app.Get("/channel/new", controllers.NewChannel)
+
+	app.Get("/channel/:id/view", controllers.ChannelView)
+
+	app.Get("/channel/:id/history", controllers.ChannelHistory)
+
+	log.Fatal(app.Listen(":3000"))
 }

@@ -1,8 +1,6 @@
 echo '删除日志文件'
-rm -f nsqlookupd.log
-rm -f nsqd.dat nsqd.log
-rm -f nsqadmin.log
-rm -f log1.dat log2.dat log3.dat
+rm -f *.log
+rm -f *.dat
 rm -f nohup.out
 
 echo "启动MongoDB"
